@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unban Me - Self-Service IP Unban Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 550px;
+            width: 100%;
+            padding: 40px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+        }
+
+        .jails-badge {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            font-family: monospace;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            animation: slideIn 0.3s ease-out;
+            display: none;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .details {
+            margin-top: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            display: none;
+        }
+
+        .details.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .details-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        .details-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .details-list li {
+            padding: 6px 0;
+            font-size: 0.85rem;
+            font-family: monospace;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .details-list li:last-child {
+            border-bottom: none;
+        }
+
+        .help-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .help-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .help-links {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .help-link {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #667eea;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .help-link:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .help-link code {
+            background: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #764ba2;
+        }
+
+        .detect-btn {
+            cursor: pointer;
+        }
+
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #999;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .loader {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .info-note {
+            background: #e3f2fd;
+            border-left: 3px solid #2196f3;
+            padding: 10px;
+            margin-top: 15px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: #1976d2;
+        }
+
+        .info-note strong {
+            color: #0d47a1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔓 Unban Me</h1>
+        <div class="subtitle">Self-service IP unban tool</div>
+        
+        <div class="jails-badge">
+            <span class="badge" id="jailsBadge">Loading configured jails...</span>
+        </div>
+
+        <div class="info-note">
+            💡 <strong>Important:</strong> Please enter the IP address that was banned. This is usually your current IP if you're unable to access the server.
+        </div>
+
+        <form id="unbanForm">
+            <div class="form-group">
+                <label for="ip">IP Address</label>
+                <div class="input-wrapper">
+                    <input 
+                        type="text" 
+                        id="ip" 
+                        name="ip" 
+                        placeholder="e.g., 192.168.1.100"
+                        pattern="^(\d{1,3}\.){3}\d{1,3}$"
+                        required
+                        autocomplete="off"
+                    >
+                </div>
+            </div>
+
+            <button type="submit" id="submitBtn">Unban IP from All Jails</button>
+        </form>
+
+        <div id="message" class="message"></div>
+        <div id="details" class="details">
+            <div class="details-title">📋 Results per jail:</div>
+            <ul id="detailsList" class="details-list"></ul>
+        </div>
+
+        <div class="help-section">
+            <div class="help-title">📌 How to find your banned IP address?</div>
+            <div class="help-links">
+                <a href="https://ifconfig.me" target="_blank" rel="noopener noreferrer" class="help-link">
+                    <span>🌐 ifconfig.me</span>
+                    <code>curl ifconfig.me</code>
+                </a>
+                <a href="https://api.ipify.org" target="_blank" rel="noopener noreferrer" class="help-link">
+                    <span>🔍 ipify.org</span>
+                    <code>curl api.ipify.org</code>
+                </a>
+                <a href="https://icanhazip.com" target="_blank" rel="noopener noreferrer" class="help-link">
+                    <span>⚡ icanhazip.com</span>
+                    <code>curl icanhazip.com</code>
+                </a>
+                <div class="help-link detect-btn" onclick="detectIP()">
+                    <span>🎯 Auto-detect my current IP</span>
+                    <span class="badge">Click to detect</span>
+                </div>
+            </div>
+            <div class="info-note" style="margin-top: 12px; background: #fff3e0; border-left-color: #ff9800;">
+                ⚠️ <strong>Note:</strong> If you're already banned, you may need to connect from a different network to access this page. Submit the IP that was banned (usually your current IP).
+            </div>
+        </div>
+
+        <div class="footer">
+            Provided by <strong>eXo ITOP Team</strong> | <a href="https://www.exoplatform.com" target="_blank" rel="noopener noreferrer">www.exoplatform.com</a>
+        </div>
+    </div>
+
+    <script>
+        // Get base path from the current URL (handles subpaths like /unban)
+        const basePath = window.location.pathname.replace(/\/$/, '');
+        
+        const form = document.getElementById('unbanForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const messageDiv = document.getElementById('message');
+        const detailsDiv = document.getElementById('details');
+        const detailsList = document.getElementById('detailsList');
+        const ipInput = document.getElementById('ip');
+        const jailsBadge = document.getElementById('jailsBadge');
+
+        async function loadJails() {
+            try {
+                const response = await fetch(`${basePath}/jails`);
+                const data = await response.json();
+                if (data.jails && data.jails.length > 0) {
+                    jailsBadge.textContent = `Monitoring ${data.count} jail${data.count !== 1 ? 's' : ''}: ${data.jails.join(', ')}`;
+                } else {
+                    jailsBadge.textContent = 'No jails configured';
+                }
+            } catch (error) {
+                console.error('Error loading jails:', error);
+                jailsBadge.textContent = 'Unable to load jail configuration';
+            }
+        }
+
+        function showMessage(message, type, details = null) {
+            messageDiv.textContent = message;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+            
+            if (details && Array.isArray(details)) {
+                detailsList.innerHTML = '';
+                details.forEach(item => {
+                    const li = document.createElement('li');
+                    li.textContent = item;
+                    detailsList.appendChild(li);
+                });
+                detailsDiv.classList.add('show');
+            } else {
+                detailsDiv.classList.remove('show');
+            }
+            
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+                if (!details) {
+                    detailsDiv.classList.remove('show');
+                }
+            }, 8000);
+        }
+
+        function validateIP(ip) {
+            const pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+            if (!pattern.test(ip)) return false;
+            
+            const parts = ip.split('.');
+            return parts.every(part => {
+                const num = parseInt(part, 10);
+                return num >= 0 && num <= 255;
+            });
+        }
+
+        async function detectIP() {
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loader"></span> Detecting...';
+            
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                ipInput.value = data.ip;
+                showMessage(`✓ IP detected: ${data.ip}`, 'success');
+            } catch (error) {
+                showMessage('Failed to detect IP. Please use manual methods above.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const ip = ipInput.value.trim();
+            
+            if (!validateIP(ip)) {
+                showMessage('Please enter a valid IP address (e.g., 192.168.1.100)', 'error');
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loader"></span> Unbanning...';
+            messageDiv.style.display = 'none';
+            detailsDiv.classList.remove('show');
+            
+            try {
+                const response = await fetch(`${basePath}/unban`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ip })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    showMessage(data.message, 'success', data.details);
+                    ipInput.value = '';
+                } else {
+                    showMessage(data.message || 'Failed to unban IP', 'error', data.details);
+                }
+            } catch (error) {
+                console.error('Network error:', error);
+                showMessage('Network error. Please try again.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Unban IP from All Jails';
+            }
+        });
+        
+        ipInput.addEventListener('blur', () => {
+            ipInput.value = ipInput.value.trim();
+        });
+        
+        // Load jails on page load
+        loadJails();
+    </script>
+</body>
+</html>

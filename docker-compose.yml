@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  fail2ban-unban:
+    build: .
+    container_name: fail2ban-unban
+    restart: unless-stopped
+    user: root
+    environment:
+      - ALLOWED_JAILS=${ALLOWED_JAILS:-sshd}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - /var/run/fail2ban:/var/run/fail2ban:ro
+    ports:
+      - "5000:5000"
+    networks:
+      - internal
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp
+
+networks:
+  internal:
+    driver: bridge
+    name: fail2ban-unban-network

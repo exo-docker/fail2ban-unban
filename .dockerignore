@@ -1,0 +1,103 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+docker-compose*.yaml
+.docker/
+*.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-*
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+tests/
+test_*.py
+*.test.py
+*_test.py
+
+# Documentation
+README.md
+LICENSE
+docs/
+*.md
+*.rst
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Application specific
+*.pyc
+*.pyo
+*.pyd
+*.pid
+*.sock
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+# Fail2ban test files
+fail2ban-*.conf
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Secret files
+*.key
+*.pem
+*.crt
+*.cert
+*.p12
+secrets/
