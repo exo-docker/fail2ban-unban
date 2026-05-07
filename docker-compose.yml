@@ -8,9 +8,14 @@ services:
     user: root
     environment:
       - ALLOWED_JAILS=${ALLOWED_JAILS:-sshd}
+      - UNBAN_TIMEOUT=${UNBAN_TIMEOUT:-10}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_DIR=${LOG_DIR:-/var/log/fail2ban-unban}
       - TZ=${TZ:-UTC}
     volumes:
       - /var/run/fail2ban:/var/run/fail2ban:ro
+      # Persist app logs on the host for easy access/forwarding
+      - fail2ban_unban_logs:/var/log/fail2ban-unban
     ports:
       - "5000:5000"
     networks:
@@ -31,6 +36,10 @@ services:
     read_only: false
     tmpfs:
       - /tmp
+
+volumes:
+  fail2ban_unban_logs:
+    driver: local
 
 networks:
   internal:
