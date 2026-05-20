@@ -20,5 +20,11 @@ else
     echo "Warning: Fail2ban socket not found at /var/run/fail2ban/fail2ban.sock"
 fi
 
+# Ensure log directory ownership (crucial if mounted as a volume)
+LOG_DIR="${LOG_DIR:-/var/log/fail2ban-unban}"
+if [ -d "$LOG_DIR" ]; then
+    chown -R unbanuser:unbanuser "$LOG_DIR"
+fi
+
 # Switch to unbanuser and run the application
 exec su-exec unbanuser "$@"
