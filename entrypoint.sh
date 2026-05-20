@@ -21,4 +21,4 @@ else
 fi
 
 # Switch to unbanuser and run the application
-exec gosu unbanuser "$@"
+exec su-exec unbanuser "$@"

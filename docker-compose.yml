@@ -13,7 +13,7 @@ services:
       - LOG_DIR=${LOG_DIR:-/var/log/fail2ban-unban}
       - TZ=${TZ:-UTC}
     volumes:
-      - /var/run/fail2ban:/var/run/fail2ban:ro
+      - /var/run/fail2ban:/var/run/fail2ban:rw
       # Persist app logs on the host for easy access/forwarding
       - fail2ban_unban_logs:/var/log/fail2ban-unban
     ports:

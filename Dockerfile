@@ -9,6 +9,9 @@ RUN apk add --no-cache \
     py3-virtualenv \
     fail2ban \
     curl \
+    su-exec \
+    bash \
+    shadow \
     && ln -sf python3 /usr/bin/python \
     && ln -sf pip3 /usr/bin/pip
 
@@ -22,10 +25,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY app.py .
+COPY entrypoint.sh .
 COPY templates/ ./templates/
 
 # Create a non-root user and log directory
 RUN adduser -D -u 1000 unbanuser && \
+    chmod +x entrypoint.sh && \
     chown -R unbanuser:unbanuser /app && \
     mkdir -p /var/log/fail2ban-unban && \
     chown unbanuser:unbanuser /var/log/fail2ban-unban
@@ -39,12 +44,14 @@ EXPOSE 5000
 # Run as root to access fail2ban socket (entrypoint drops to unbanuser)
 USER root
 
+ENTRYPOINT ["/app/entrypoint.sh"]
+
 # Use gunicorn from virtual environment
+# We remove --access-logfile to avoid duplicate logging and to respect suppressed health checks
 CMD ["gunicorn", \
      "--bind", "0.0.0.0:5000", \
      "--workers", "2", \
      "--threads", "4", \
-     "--access-logfile", "-", \
      "--error-logfile", "-", \
      "--log-level", "warning", \
      "app:app"]

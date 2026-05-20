@@ -136,6 +136,8 @@ def unban_ip_from_all_jails(ip_address):
 # ---------------------------------------------------------------------------
 @app.before_request
 def _before():
+    if request.path == "/health":
+        return
     g.start_ts = datetime.now(timezone.utc)
     logger.info(
         "Request start | method=%s | path=%s | remote=%s",
@@ -145,6 +147,9 @@ def _before():
 
 @app.after_request
 def _after(response):
+    if request.path == "/health":
+        return response
+
     elapsed_ms = (
         (datetime.now(timezone.utc) - g.start_ts).total_seconds() * 1000
         if hasattr(g, "start_ts")
@@ -204,11 +209,13 @@ def get_jails():
 @app.route("/health")
 def health():
     try:
+        # Check fail2ban status via ping (fast and lightweight)
         result = subprocess.run(
-            ["fail2ban-client", "status"],
-            capture_output=True, text=True, timeout=5,
+            ["fail2ban-client", "ping"],
+            capture_output=True, text=True, timeout=2,
         )
-        fail2ban_status = "healthy" if result.returncode == 0 else "degraded"
+        fail2ban_alive = (result.returncode == 0 and "pong" in result.stdout.lower())
+        fail2ban_status = "healthy" if fail2ban_alive else "degraded"
     except FileNotFoundError:
         fail2ban_status = "unhealthy: fail2ban-client not found"
     except Exception as exc:
@@ -216,7 +223,7 @@ def health():
 
     status_code = 200 if fail2ban_status == "healthy" else 503
     return jsonify({
-        "status": "healthy",
+        "status": fail2ban_status,
         "fail2ban": fail2ban_status,
         "jails_configured": len(ALLOWED_JAILS),
         "log_file": LOG_FILE,
