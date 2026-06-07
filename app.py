@@ -139,9 +139,10 @@ def _before():
     if request.path == "/health":
         return
     g.start_ts = datetime.now(timezone.utc)
+    real_ip = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or request.remote_addr
     logger.info(
         "Request start | method=%s | path=%s | remote=%s",
-        request.method, request.path, request.remote_addr,
+        request.method, request.path, real_ip,
     )
 
 
