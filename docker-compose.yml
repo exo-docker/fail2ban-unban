@@ -4,17 +4,16 @@ services:
   fail2ban-unban:
     build: .
     container_name: fail2ban-unban
-    restart: unless-stopped
-    user: root
+    restart: always
     environment:
       - ALLOWED_JAILS=${ALLOWED_JAILS:-sshd}
       - UNBAN_TIMEOUT=${UNBAN_TIMEOUT:-10}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_DIR=${LOG_DIR:-/var/log/fail2ban-unban}
+      - FAIL2BAN_SOCKET=${FAIL2BAN_SOCKET:-/var/run/fail2ban/fail2ban.sock}
       - TZ=${TZ:-UTC}
     volumes:
       - /var/run/fail2ban:/var/run/fail2ban:rw
-      # Persist app logs on the host for easy access/forwarding
       - fail2ban_unban_logs:/var/log/fail2ban-unban
     ports:
       - "5000:5000"
@@ -28,14 +27,11 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
-      timeout: 10s
-      retries: 3
+      timeout: 15s
+      retries: 5
       start_period: 40s
     security_opt:
       - no-new-privileges:true
-    read_only: false
-    tmpfs:
-      - /tmp
 
 volumes:
   fail2ban_unban_logs:

@@ -3,6 +3,7 @@ import re
 import subprocess
 import logging
 import logging.handlers
+import time
 from datetime import datetime, timezone
 from flask import Flask, render_template, request, jsonify, g
 from dotenv import load_dotenv
@@ -48,6 +49,7 @@ logger = logging.getLogger("fail2ban_unban")
 # ---------------------------------------------------------------------------
 ALLOWED_JAILS = [j.strip() for j in os.getenv("ALLOWED_JAILS", "sshd").split(",") if j.strip()]
 UNBAN_TIMEOUT = int(os.getenv("UNBAN_TIMEOUT", "10"))
+FAIL2BAN_SOCKET = os.getenv("FAIL2BAN_SOCKET", "/var/run/fail2ban/fail2ban.sock")
 
 # Compiled regex for fast IPv4 + basic IPv6 validation
 _IPV4_RE = re.compile(
@@ -59,6 +61,41 @@ _IPV6_RE = re.compile(r"^[0-9a-fA-F:]{2,39}$")
 # Flask app
 # ---------------------------------------------------------------------------
 app = Flask(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Socket watchdog
+# ---------------------------------------------------------------------------
+import threading
+import signal
+
+def _socket_watchdog(interval: int = 300):
+    """Background thread: periodically check the fail2ban socket still exists.
+
+    If the socket disappears (e.g. fail2ban restarted and recreated its
+    runtime directory, replacing the inode that Docker bind-mounted), sends
+    SIGTERM to PID 1 (gunicorn master) to trigger a clean container shutdown.
+    Docker restart: always will bring it back with a fresh bind-mount pointing
+    at the new socket inode, and entrypoint.sh will re-apply chmod 666 before
+    dropping to unbanuser.
+
+    os._exit() is intentionally avoided: gunicorn catches worker exits and
+    respawns them, so only killing PID 1 actually stops the container.
+    """
+    logger.info("Socket watchdog started | socket=%s | interval=%ds", FAIL2BAN_SOCKET, interval)
+    while True:
+        time.sleep(interval)
+        if not os.path.exists(FAIL2BAN_SOCKET):
+            logger.critical(
+                "Socket watchdog: %s has disappeared – sending SIGTERM to PID 1 to restart container",
+                FAIL2BAN_SOCKET,
+            )
+            os.kill(1, signal.SIGTERM)
+            return  # thread exits; container shutdown is in progress
+        logger.debug("Socket watchdog: %s OK", FAIL2BAN_SOCKET)
+
+_watchdog = threading.Thread(target=_socket_watchdog, daemon=True, name="socket-watchdog")
+_watchdog.start()
 
 
 def _validate_ip(ip: str) -> tuple:
@@ -74,6 +111,17 @@ def _validate_ip(ip: str) -> tuple:
     return False, f"Invalid IP address format: {ip!r}"
 
 
+def _socket_accessible() -> bool:
+    """Return True if the fail2ban Unix socket exists and is accessible.
+
+    Called before every fail2ban-client invocation so that a missing or
+    inaccessible socket (e.g. after a fail2ban restart on the host) is
+    caught early and reported clearly instead of producing a cryptic
+    'Failed to access socket path' error buried in stderr.
+    """
+    return os.path.exists(FAIL2BAN_SOCKET) and os.access(FAIL2BAN_SOCKET, os.R_OK | os.W_OK)
+
+
 def unban_ip_from_all_jails(ip_address):
     """Unban ip_address from every jail in ALLOWED_JAILS.
 
@@ -83,6 +131,18 @@ def unban_ip_from_all_jails(ip_address):
     success_count = 0
 
     logger.info("Unban requested | ip=%s | jails=%s", ip_address, ALLOWED_JAILS)
+
+    # Fast pre-flight: check socket once before iterating jails.
+    # The socket can disappear after a fail2ban restart on the host even
+    # while the directory bind-mount keeps the container path intact.
+    if not _socket_accessible():
+        logger.error(
+            "Socket not accessible | path=%s | exists=%s",
+            FAIL2BAN_SOCKET,
+            os.path.exists(FAIL2BAN_SOCKET),
+        )
+        msg = f"fail2ban socket unavailable ({FAIL2BAN_SOCKET}). Is fail2ban running on the host?"
+        return False, [f"✗ {jail}: {msg}" for jail in ALLOWED_JAILS]
 
     for jail in ALLOWED_JAILS:
         cmd = ["fail2ban-client", "set", jail, "unbanip", ip_address]
@@ -102,6 +162,13 @@ def unban_ip_from_all_jails(ip_address):
                 if "not found" in stderr_lower or "does not exist" in stderr_lower:
                     logger.info("IP not present | ip=%s | jail=%s", ip_address, jail)
                     results.append(f"○ {jail}: not banned")
+                elif "socket path" in stderr_lower or "fail2ban running" in stderr_lower:
+                    # Socket gone mid-operation (fail2ban restarted between jails)
+                    logger.error(
+                        "Socket lost mid-unban | ip=%s | jail=%s | stderr=%s",
+                        ip_address, jail, result.stderr.strip(),
+                    )
+                    results.append(f"✗ {jail}: fail2ban socket lost – is fail2ban running?")
                 else:
                     logger.error(
                         "Unban failed | ip=%s | jail=%s | stderr=%s",
@@ -207,21 +274,56 @@ def get_jails():
     return jsonify({"jails": ALLOWED_JAILS, "count": len(ALLOWED_JAILS)})
 
 
+def _check_fail2ban(retries: int = 2, retry_delay: float = 1.0) -> str:
+    """Ping the fail2ban daemon and return a status string.
+
+    Checks socket accessibility first (covers the fail2ban-restart-on-host
+    scenario where the socket file is recreated but the container still holds
+    the old bind-mount directory).  Retries once on transient errors before
+    reporting degraded.
+    """
+    # Distinguish "socket gone" from "daemon slow" for a clear health message
+    if not _socket_accessible():
+        logger.warning(
+            "Health check: socket not accessible | path=%s | exists=%s",
+            FAIL2BAN_SOCKET,
+            os.path.exists(FAIL2BAN_SOCKET),
+        )
+        return "unhealthy: socket not accessible – is fail2ban running on the host?"
+
+    for attempt in range(1, retries + 1):
+        try:
+            result = subprocess.run(
+                ["fail2ban-client", "ping"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0 and "pong" in result.stdout.lower():
+                return "healthy"
+            # Daemon responded but did not pong – genuine degraded state, no retry
+            logger.warning(
+                "fail2ban ping unexpected response | rc=%d | stdout=%r | stderr=%r",
+                result.returncode, result.stdout.strip(), result.stderr.strip(),
+            )
+            return "degraded"
+        except FileNotFoundError:
+            logger.critical("fail2ban-client not found in PATH")
+            return "unhealthy: fail2ban-client not found"
+        except subprocess.TimeoutExpired:
+            logger.warning("fail2ban ping timed out (attempt %d/%d)", attempt, retries)
+        except Exception as exc:
+            logger.warning("fail2ban ping error (attempt %d/%d): %s", attempt, retries, exc)
+
+        if attempt < retries:
+            time.sleep(retry_delay)
+
+    return "degraded"
+
+
 @app.route("/health")
 def health():
-    try:
-        # Check fail2ban status via ping (fast and lightweight)
-        result = subprocess.run(
-            ["fail2ban-client", "ping"],
-            capture_output=True, text=True, timeout=2,
-        )
-        fail2ban_alive = (result.returncode == 0 and "pong" in result.stdout.lower())
-        fail2ban_status = "healthy" if fail2ban_alive else "degraded"
-    except FileNotFoundError:
-        fail2ban_status = "unhealthy: fail2ban-client not found"
-    except Exception as exc:
-        fail2ban_status = f"unhealthy: {exc}"
-
+    fail2ban_status = _check_fail2ban()
     status_code = 200 if fail2ban_status == "healthy" else 503
     return jsonify({
         "status": fail2ban_status,

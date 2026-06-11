@@ -41,13 +41,11 @@ VOLUME ["/var/log/fail2ban-unban"]
 # Expose port
 EXPOSE 5000
 
-# Run as root to access fail2ban socket (entrypoint drops to unbanuser)
+# Run as root so entrypoint can chmod the socket, then drops to unbanuser via su-exec
 USER root
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 
-# Use gunicorn from virtual environment
-# We remove --access-logfile to avoid duplicate logging and to respect suppressed health checks
 CMD ["gunicorn", \
      "--bind", "0.0.0.0:5000", \
      "--workers", "2", \
