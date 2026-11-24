@@ -252,6 +252,20 @@ ls -la /var/run/fail2ban/fail2ban.sock
 # The container runs as root in docker-compose.yml with: user: root
 ```
 
+### Socket Watchdog
+
+When fail2ban restarts on the host it recreates its socket with new permissions,
+which the container cannot use until `entrypoint.sh` runs again. A watchdog in the
+gunicorn master probes the socket every `WATCHDOG_INTERVAL` seconds (default 30):
+it must exist, be readable/writable and answer `fail2ban-client ping`. After
+`WATCHDOG_FAILURES` consecutive failures (default 3) it stops gunicorn gracefully, and
+the Docker restart policy (`restart: always` / `unless-stopped`) restarts the
+container. Set `WATCHDOG_ENABLED=false` to turn it off. Look for `Watchdog:` lines in
+`docker logs`. If fail2ban stays down, the container keeps restarting with Docker's
+back-off until it is back.
+
+Run the unit tests with `python3 -m unittest discover -s tests`.
+
 ### Cannot Connect to fail2ban
 
 ```bash

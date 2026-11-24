@@ -22,7 +22,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
-COPY app.py .
+COPY app.py socket_watchdog.py gunicorn.conf.py ./
 COPY entrypoint.sh .
 COPY templates/ ./templates/
 
@@ -45,6 +45,7 @@ USER root
 ENTRYPOINT ["/app/entrypoint.sh"]
 
 CMD ["gunicorn", \
+     "-c", "/app/gunicorn.conf.py", \
      "--bind", "0.0.0.0:5000", \
      "--workers", "2", \
      "--threads", "4", \

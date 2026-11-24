@@ -57,41 +57,6 @@ FAIL2BAN_SOCKET = os.getenv("FAIL2BAN_SOCKET", "/var/run/fail2ban/fail2ban.sock"
 app = Flask(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Socket watchdog
-# ---------------------------------------------------------------------------
-import threading
-import signal
-
-def _socket_watchdog(interval: int = 300):
-    """Background thread: periodically check the fail2ban socket still exists.
-
-    If the socket disappears (e.g. fail2ban restarted and recreated its
-    runtime directory, replacing the inode that Docker bind-mounted), sends
-    SIGTERM to PID 1 (gunicorn master) to trigger a clean container shutdown.
-    Docker restart: always will bring it back with a fresh bind-mount pointing
-    at the new socket inode, and entrypoint.sh will re-apply chmod 666 before
-    dropping to unbanuser.
-
-    os._exit() is intentionally avoided: gunicorn catches worker exits and
-    respawns them, so only killing PID 1 actually stops the container.
-    """
-    logger.info("Socket watchdog started | socket=%s | interval=%ds", FAIL2BAN_SOCKET, interval)
-    while True:
-        time.sleep(interval)
-        if not os.path.exists(FAIL2BAN_SOCKET):
-            logger.critical(
-                "Socket watchdog: %s has disappeared – sending SIGTERM to PID 1 to restart container",
-                FAIL2BAN_SOCKET,
-            )
-            os.kill(1, signal.SIGTERM)
-            return  # thread exits; container shutdown is in progress
-        logger.debug("Socket watchdog: %s OK", FAIL2BAN_SOCKET)
-
-_watchdog = threading.Thread(target=_socket_watchdog, daemon=True, name="socket-watchdog")
-_watchdog.start()
-
-
 def _validate_ip(ip: str) -> tuple:
     """Return (is_valid, reason). Accepts any valid IPv4 or IPv6 address."""
     if not ip:
@@ -139,7 +104,7 @@ def unban_ip_from_all_jails(ip_address):
         return False, [f"✗ {jail}: {msg}" for jail in ALLOWED_JAILS]
 
     for jail in ALLOWED_JAILS:
-        cmd = ["fail2ban-client", "set", jail, "unbanip", ip_address]
+        cmd = ["fail2ban-client", "-s", FAIL2BAN_SOCKET, "set", jail, "unbanip", ip_address]
         logger.debug("Executing | cmd=%s", " ".join(cmd))
 
         try:
@@ -290,7 +255,7 @@ def _check_fail2ban(retries: int = 2, retry_delay: float = 1.0) -> str:
     for attempt in range(1, retries + 1):
         try:
             result = subprocess.run(
-                ["fail2ban-client", "ping"],
+                ["fail2ban-client", "-s", FAIL2BAN_SOCKET, "ping"],
                 capture_output=True,
                 text=True,
                 timeout=5,

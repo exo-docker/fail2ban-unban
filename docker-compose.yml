@@ -9,6 +9,9 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_DIR=${LOG_DIR:-/var/log/fail2ban-unban}
       - FAIL2BAN_SOCKET=${FAIL2BAN_SOCKET:-/var/run/fail2ban/fail2ban.sock}
+      - WATCHDOG_ENABLED=${WATCHDOG_ENABLED:-true}
+      - WATCHDOG_INTERVAL=${WATCHDOG_INTERVAL:-30}
+      - WATCHDOG_FAILURES=${WATCHDOG_FAILURES:-3}
       - TZ=${TZ:-UTC}
     volumes:
       - /var/run/fail2ban:/var/run/fail2ban:rw
