@@ -41,7 +41,6 @@ RUN apk add --no-cache \
     py3-pip \
     fail2ban \
     && ln -sf python3 /usr/bin/python \
-    && ln -sf pip3 /usr/bin/pip
 
 # Create virtual environment
 RUN python3 -m venv /opt/venv
@@ -71,9 +70,9 @@ CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "4", "
 ### 3. Create requirements.txt
 
 ```txt
-flask==3.0.0
-gunicorn==21.2.0
-python-dotenv==1.0.0
+flask==3.1.3
+gunicorn==27.0.1
+python-dotenv==1.2.4
 ```
 
 ### 4. Create docker-compose.yml
