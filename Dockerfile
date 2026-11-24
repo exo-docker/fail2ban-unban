@@ -1,4 +1,4 @@
-FROM alpine:3.19
+FROM alpine:3.24
 
 WORKDIR /app
 
@@ -6,14 +6,12 @@ WORKDIR /app
 RUN apk add --no-cache \
     python3 \
     py3-pip \
-    py3-virtualenv \
     fail2ban \
     curl \
     su-exec \
     bash \
     shadow \
-    && ln -sf python3 /usr/bin/python \
-    && ln -sf pip3 /usr/bin/pip
+    && ln -sf python3 /usr/bin/python
 
 # Create virtual environment
 RUN python3 -m venv /opt/venv
@@ -21,7 +19,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy requirements and install Python dependencies in virtual environment
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY app.py .

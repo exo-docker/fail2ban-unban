@@ -1,5 +1,5 @@
 import os
-import re
+import ipaddress
 import subprocess
 import logging
 import logging.handlers
@@ -51,12 +51,6 @@ ALLOWED_JAILS = [j.strip() for j in os.getenv("ALLOWED_JAILS", "sshd").split(","
 UNBAN_TIMEOUT = int(os.getenv("UNBAN_TIMEOUT", "10"))
 FAIL2BAN_SOCKET = os.getenv("FAIL2BAN_SOCKET", "/var/run/fail2ban/fail2ban.sock")
 
-# Compiled regex for fast IPv4 + basic IPv6 validation
-_IPV4_RE = re.compile(
-    r"^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$"
-)
-_IPV6_RE = re.compile(r"^[0-9a-fA-F:]{2,39}$")
-
 # ---------------------------------------------------------------------------
 # Flask app
 # ---------------------------------------------------------------------------
@@ -99,16 +93,16 @@ _watchdog.start()
 
 
 def _validate_ip(ip: str) -> tuple:
-    """Return (is_valid, reason). Accepts IPv4 and abbreviated IPv6."""
+    """Return (is_valid, reason). Accepts any valid IPv4 or IPv6 address."""
     if not ip:
         return False, "IP address is required"
     if len(ip) > 45:
         return False, "IP address too long"
-    if _IPV4_RE.match(ip):
-        return True, ""
-    if _IPV6_RE.match(ip) and ":" in ip:
-        return True, ""
-    return False, f"Invalid IP address format: {ip!r}"
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError:
+        return False, f"Invalid IP address format: {ip!r}"
+    return True, ""
 
 
 def _socket_accessible() -> bool:
@@ -241,8 +235,10 @@ def index():
 @app.route("/unban", methods=["POST"])
 def handle_unban():
     try:
-        data = request.get_json(silent=True) or {}
-        ip_address = data.get("ip", "").strip()
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            data = {}
+        ip_address = str(data.get("ip", "")).strip()
 
         valid, reason = _validate_ip(ip_address)
         if not valid:

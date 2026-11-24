@@ -31,7 +31,7 @@ mkdir templates
 ### 2. Create Dockerfile
 
 ```dockerfile
-FROM alpine:3.19
+FROM alpine:3.24
 
 WORKDIR /app
 
@@ -39,7 +39,6 @@ WORKDIR /app
 RUN apk add --no-cache \
     python3 \
     py3-pip \
-    py3-virtualenv \
     fail2ban \
     && ln -sf python3 /usr/bin/python \
     && ln -sf pip3 /usr/bin/pip
