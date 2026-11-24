@@ -3,490 +3,456 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <meta name="robots" content="noindex, nofollow">
     <title>Unban Me - Self-Service IP Unban Tool</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%93%3C/text%3E%3C/svg%3E">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --bg-from: #667eea;
+            --bg-to: #764ba2;
+            --card: rgba(255, 255, 255, 0.96);
+            --text: #1f2430;
+            --muted: #5f6675;
+            --border: #dfe3ec;
+            --surface: #f4f6fb;
+            --surface-hover: #e9edf6;
+            --btn-from: #667eea;
+            --btn-to: #764ba2;
+            --accent: #5468d4;
+            --accent-text: #ffffff;
+            --focus: rgba(84, 104, 212, 0.35);
+            --ok-bg: #e3f5e8;   --ok-text: #14572a;   --ok-border: #b6e2c2;
+            --err-bg: #fde8ea;  --err-text: #7d1d27;  --err-border: #f4bcc2;
+            --warn-bg: #fff3df; --warn-text: #7a4a00; --warn-border: #f5d49a;
+            --info-bg: #e6f1fd; --info-text: #0e4a86; --info-border: #b7d5f5;
+            --shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-from: #1d2140;
+                --bg-to: #2d1b45;
+                --card: rgba(30, 33, 48, 0.96);
+                --text: #e8eaf2;
+                --muted: #a0a7b8;
+                --border: #384058;
+                --surface: #272b3d;
+                --surface-hover: #313650;
+                --btn-from: #5468d4;
+                --btn-to: #7a4fb5;
+                --accent: #8b9cff;
+                --accent-text: #11142a;
+                --focus: rgba(139, 156, 255, 0.4);
+                --ok-bg: #12301d;   --ok-text: #8fe0a8;   --ok-border: #1f5a34;
+                --err-bg: #3a1a20;  --err-text: #f5a3ad;  --err-border: #6b2a35;
+                --warn-bg: #3a2c12; --warn-text: #f3cb85; --warn-border: #6b5120;
+                --info-bg: #14283f; --info-text: #9cc8f2; --info-border: #28507c;
+                --shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--bg-from) 0%, var(--bg-to) 100%);
+            color: var(--text);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            line-height: 1.5;
         }
 
         .container {
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--card);
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 550px;
+            box-shadow: var(--shadow);
+            max-width: 560px;
             width: 100%;
             padding: 40px;
             animation: fadeIn 0.5s ease-out;
         }
 
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
 
-        h1 {
-            color: #333;
-            font-size: 2rem;
-            margin-bottom: 10px;
-            text-align: center;
-        }
+        h1 { font-size: 2rem; text-align: center; line-height: 1.2; }
 
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 0.9rem;
-        }
+        .subtitle { text-align: center; color: var(--muted); margin: 8px 0 20px; font-size: 0.95rem; }
 
-        .jails-badge {
-            text-align: center;
-            margin-bottom: 20px;
+        .status {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            font-size: 0.85rem; color: var(--muted); margin-bottom: 14px;
         }
+        .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+        .status[data-state="ok"] .dot { background: #2fb457; box-shadow: 0 0 0 3px rgba(47, 180, 87, 0.25); }
+        .status[data-state="down"] .dot { background: #e5484d; box-shadow: 0 0 0 3px rgba(229, 72, 77, 0.25); }
 
-        .badge {
-            display: inline-block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
+        .jails { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 20px; }
+        .chip {
+            background: var(--surface); border: 1px solid var(--border); color: var(--text);
+            padding: 3px 10px; border-radius: 999px; font-size: 0.8rem; font-family: ui-monospace, Menlo, Consolas, monospace;
         }
+        .jails-label { width: 100%; text-align: center; font-size: 0.8rem; color: var(--muted); }
 
-        .form-group {
-            margin-bottom: 25px;
+        .note {
+            border-left: 3px solid var(--info-border); background: var(--info-bg); color: var(--info-text);
+            padding: 10px 12px; border-radius: 8px; font-size: 0.85rem;
         }
+        .note.warn { border-left-color: var(--warn-border); background: var(--warn-bg); color: var(--warn-text); }
 
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 500;
-        }
+        form { margin-top: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; }
 
-        .input-wrapper {
-            position: relative;
-        }
+        .field { display: flex; gap: 8px; }
 
         input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
+            flex: 1; min-width: 0;
+            padding: 12px 14px;
+            border: 2px solid var(--border);
             border-radius: 10px;
             font-size: 1rem;
-            transition: all 0.3s ease;
-            font-family: monospace;
+            font-family: ui-monospace, Menlo, Consolas, monospace;
+            background: var(--card); color: var(--text);
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
+        input::placeholder { color: var(--muted); opacity: 0.7; }
+        input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus); }
+        input[aria-invalid="true"] { border-color: #e5484d; }
 
-        input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
+        .hint { margin-top: 6px; font-size: 0.8rem; color: var(--muted); min-height: 1.2em; }
+        .hint.error { color: var(--err-text); }
 
-        button {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
+        button { font: inherit; cursor: pointer; }
+        button:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
-        button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        .btn-primary {
+            width: 100%; margin-top: 14px; padding: 14px;
+            background: linear-gradient(135deg, var(--btn-from), var(--btn-to));
+            color: #fff; border: none; border-radius: 10px; font-weight: 600; font-size: 1rem;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
+        .btn-secondary {
+            flex: none; padding: 0 14px; border-radius: 10px; font-weight: 600; font-size: 0.9rem;
+            background: var(--surface); color: var(--accent); border: 2px solid var(--border);
         }
+        .btn-secondary:hover:not(:disabled) { background: var(--surface-hover); }
+        .btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        .message {
-            margin-top: 20px;
-            padding: 12px;
-            border-radius: 10px;
-            text-align: center;
-            animation: slideIn 0.3s ease-out;
-            display: none;
-        }
+        .message { margin-top: 20px; padding: 12px 14px; border-radius: 10px; text-align: center; border: 1px solid; animation: slideIn 0.3s ease-out; }
+        .message[hidden], .details[hidden] { display: none; }
+        .message.success { background: var(--ok-bg); color: var(--ok-text); border-color: var(--ok-border); }
+        .message.error { background: var(--err-bg); color: var(--err-text); border-color: var(--err-border); }
 
         @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(-8px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
 
-        .message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .details {
-            margin-top: 15px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 15px;
-            display: none;
-        }
-
-        .details.show {
-            display: block;
-            animation: slideIn 0.3s ease-out;
-        }
-
-        .details-title {
-            font-weight: 600;
-            margin-bottom: 10px;
-            font-size: 0.9rem;
-            color: #333;
-        }
-
-        .details-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
+        .details { margin-top: 12px; background: var(--surface); border-radius: 10px; padding: 12px 14px; animation: slideIn 0.3s ease-out; }
+        .details-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; }
+        .details-list { list-style: none; }
         .details-list li {
-            padding: 6px 0;
-            font-size: 0.85rem;
-            font-family: monospace;
-            border-bottom: 1px solid #e0e0e0;
+            display: flex; gap: 8px; padding: 6px 0; font-size: 0.85rem;
+            font-family: ui-monospace, Menlo, Consolas, monospace; border-bottom: 1px solid var(--border);
+            overflow-wrap: anywhere;
         }
+        .details-list li:last-child { border-bottom: none; }
+        .details-list .ok { color: var(--ok-text); }
+        .details-list .skip { color: var(--muted); }
+        .details-list .fail { color: var(--err-text); }
+        .details-list .icon { flex: none; font-weight: 700; }
 
-        .details-list li:last-child {
-            border-bottom: none;
-        }
-
-        .help-section {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
-        }
-
-        .help-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 12px;
-        }
-
-        .help-links {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
+        .help { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .help-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; }
+        .help-links { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
         .help-link {
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 8px;
-            text-decoration: none;
-            color: #667eea;
-            font-size: 0.9rem;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            background: var(--surface); padding: 10px 12px; border-radius: 8px; text-decoration: none; color: var(--accent);
+            font-size: 0.9rem; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            transition: background 0.2s, transform 0.2s;
         }
-
-        .help-link:hover {
-            background: #e9ecef;
-            transform: translateX(5px);
-        }
-
+        .help-link:hover { background: var(--surface-hover); transform: translateX(4px); }
         .help-link code {
-            background: #fff;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            color: #764ba2;
+            background: var(--card); color: var(--muted); padding: 3px 8px; border-radius: 4px; font-size: 0.8rem;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
-        .detect-btn {
-            cursor: pointer;
-        }
-
-        .footer {
-            margin-top: 20px;
-            text-align: center;
-            font-size: 0.75rem;
-            color: #999;
-        }
-
-        .footer a {
-            color: #667eea;
-            text-decoration: none;
-        }
-
-        .footer a:hover {
-            text-decoration: underline;
-        }
+        .footer { margin-top: 22px; text-align: center; font-size: 0.75rem; color: var(--muted); }
+        .footer a { color: var(--accent); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
 
         .loader {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 8px;
-            vertical-align: middle;
+            display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px;
+            border: 2px solid rgba(255, 255, 255, 0.4); border-top-color: currentColor; border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+        @media (max-width: 480px) {
+            .container { padding: 24px 18px; }
+            h1 { font-size: 1.6rem; }
+            .help-link code { display: none; }
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .info-note {
-            background: #e3f2fd;
-            border-left: 3px solid #2196f3;
-            padding: 10px;
-            margin-top: 15px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            color: #1976d2;
-        }
-
-        .info-note strong {
-            color: #0d47a1;
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition: none !important; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <main class="container">
         <h1>🔓 Unban Me</h1>
-        <div class="subtitle">Self-service IP unban tool</div>
-        
-        <div class="jails-badge">
-            <span class="badge" id="jailsBadge">Loading configured jails...</span>
+        <p class="subtitle">Self-service IP unban tool</p>
+
+        <div class="status" id="status" data-state="unknown" role="status">
+            <span class="dot" aria-hidden="true"></span><span id="statusText">Checking fail2ban…</span>
         </div>
 
-        <div class="info-note">
-            💡 <strong>Important:</strong> Please enter the IP address that was banned. This is usually your current IP if you're unable to access the server.
+        <div class="jails" id="jails" aria-label="Configured jails">
+            <span class="jails-label">Loading configured jails…</span>
         </div>
 
-        <form id="unbanForm">
-            <div class="form-group">
-                <label for="ip">IP Address</label>
-                <div class="input-wrapper">
-                    <input 
-                        type="text" 
-                        id="ip" 
-                        name="ip" 
-                        placeholder="e.g., 192.168.1.100"
-                        pattern="^(\d{1,3}\.){3}\d{1,3}$"
-                        required
-                        autocomplete="off"
-                    >
-                </div>
+        <div class="note">
+            💡 <strong>Important:</strong> enter the IP address that was banned. This is usually your current IP if you can no longer reach the server.
+        </div>
+
+        <form id="unbanForm" novalidate>
+            <label for="ip">IP address (IPv4 or IPv6)</label>
+            <div class="field">
+                <input type="text" id="ip" name="ip" placeholder="e.g. 203.0.113.42"
+                       inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                       maxlength="45" required aria-describedby="ipHint">
+                <button type="button" class="btn-secondary" id="detectBtn" title="Fill in the IP address this browser uses">🎯 Detect</button>
             </div>
+            <div class="hint" id="ipHint"></div>
 
-            <button type="submit" id="submitBtn">Unban IP from All Jails</button>
+            <button type="submit" class="btn-primary" id="submitBtn">Unban IP from all jails</button>
         </form>
 
-        <div id="message" class="message"></div>
-        <div id="details" class="details">
-            <div class="details-title">📋 Results per jail:</div>
+        <div id="message" class="message" role="alert" hidden></div>
+        <div id="details" class="details" hidden>
+            <div class="details-title">📋 Results per jail</div>
             <ul id="detailsList" class="details-list"></ul>
         </div>
 
-        <div class="help-section">
+        <section class="help">
             <div class="help-title">📌 How to find your banned IP address?</div>
             <div class="help-links">
                 <a href="https://ifconfig.me" target="_blank" rel="noopener noreferrer" class="help-link">
-                    <span>🌐 ifconfig.me</span>
-                    <code>curl ifconfig.me</code>
+                    <span>🌐 ifconfig.me</span><code>curl ifconfig.me</code>
                 </a>
-                <a href="https://api.ipify.org" target="_blank" rel="noopener noreferrer" class="help-link">
-                    <span>🔍 ipify.org</span>
-                    <code>curl api.ipify.org</code>
+                <a href="https://api64.ipify.org" target="_blank" rel="noopener noreferrer" class="help-link">
+                    <span>🔍 ipify.org</span><code>curl api64.ipify.org</code>
                 </a>
                 <a href="https://icanhazip.com" target="_blank" rel="noopener noreferrer" class="help-link">
-                    <span>⚡ icanhazip.com</span>
-                    <code>curl icanhazip.com</code>
+                    <span>⚡ icanhazip.com</span><code>curl icanhazip.com</code>
                 </a>
-                <div class="help-link detect-btn" onclick="detectIP()">
-                    <span>🎯 Auto-detect my current IP</span>
-                    <span class="badge">Click to detect</span>
-                </div>
             </div>
-            <div class="info-note" style="margin-top: 12px; background: #fff3e0; border-left-color: #ff9800;">
-                ⚠️ <strong>Note:</strong> If you're already banned, you may need to connect from a different network to access this page. Submit the IP that was banned (usually your current IP).
+            <div class="note warn">
+                ⚠️ <strong>Note:</strong> if you are already banned, you may need to connect from a different network to reach this page. Submit the IP that was banned.
             </div>
-        </div>
+        </section>
 
         <div class="footer">
             Provided by <strong>eXo ITOP Team</strong> | <a href="https://www.exoplatform.com" target="_blank" rel="noopener noreferrer">www.exoplatform.com</a>
         </div>
-    </div>
+    </main>
 
     <script>
-        // Get base path from the current URL (handles subpaths like /unban)
+        // Base path of the page (handles deployments under a sub-path)
         const basePath = window.location.pathname.replace(/\/$/, '');
-        
-        const form = document.getElementById('unbanForm');
-        const submitBtn = document.getElementById('submitBtn');
-        const messageDiv = document.getElementById('message');
-        const detailsDiv = document.getElementById('details');
-        const detailsList = document.getElementById('detailsList');
-        const ipInput = document.getElementById('ip');
-        const jailsBadge = document.getElementById('jailsBadge');
+
+        const $ = (id) => document.getElementById(id);
+        const form = $('unbanForm');
+        const submitBtn = $('submitBtn');
+        const detectBtn = $('detectBtn');
+        const messageDiv = $('message');
+        const detailsDiv = $('details');
+        const detailsList = $('detailsList');
+        const ipInput = $('ip');
+        const ipHint = $('ipHint');
+        const jailsDiv = $('jails');
+        const statusDiv = $('status');
+        const statusText = $('statusText');
+        const SUBMIT_LABEL = submitBtn.textContent;
+        let hideTimer = null;
+
+        function isIPv4(s) {
+            const parts = s.split('.');
+            return parts.length === 4 && parts.every(p => /^(0|[1-9]\d{0,2})$/.test(p) && Number(p) <= 255);
+        }
+
+        // Light check only (the server is authoritative): hex groups, colons, optional embedded IPv4.
+        function isIPv6(s) {
+            if (!s.includes(':') || !/^[0-9a-fA-F:.]+$/.test(s) || (s.match(/::/g) || []).length > 1) return false;
+            let groups = s.split(':');
+            const last = groups[groups.length - 1];
+            if (last.includes('.')) {
+                if (!isIPv4(last)) return false;
+                groups = groups.slice(0, -1).concat(['0', '0']);
+            }
+            if (groups.some(g => g.length > 4)) return false;
+            const filled = groups.filter(g => g !== '').length;
+            return s.includes('::') ? filled < 8 : groups.length === 8 && filled === 8;
+        }
+
+        const validateIP = (ip) => isIPv4(ip) || isIPv6(ip);
+
+        function setHint(text, isError) {
+            ipHint.textContent = text;
+            ipHint.classList.toggle('error', !!isError);
+            ipInput.setAttribute('aria-invalid', isError ? 'true' : 'false');
+        }
+
+        function clearResult() {
+            clearTimeout(hideTimer);
+            messageDiv.hidden = true;
+            detailsDiv.hidden = true;
+        }
+
+        function renderDetails(details) {
+            detailsList.replaceChildren();
+            (details || []).forEach(item => {
+                const text = String(item);
+                const mark = text.charAt(0);
+                const li = document.createElement('li');
+                const icon = document.createElement('span');
+                icon.className = 'icon';
+                icon.setAttribute('aria-hidden', 'true');
+                li.className = mark === '✓' ? 'ok' : mark === '○' ? 'skip' : 'fail';
+                icon.textContent = mark === '✓' || mark === '○' || mark === '✗' ? mark : '•';
+                li.append(icon, document.createTextNode(['✓', '○', '✗'].includes(mark) ? text.slice(1).trim() : text));
+                detailsList.appendChild(li);
+            });
+            detailsDiv.hidden = !(details && details.length);
+        }
+
+        function showMessage(message, type, details) {
+            clearResult();
+            messageDiv.textContent = message;
+            messageDiv.className = `message ${type}`;
+            messageDiv.hidden = false;
+            renderDetails(details);
+            // Errors stay until the next action; successes fade after a while.
+            if (type === 'success') {
+                hideTimer = setTimeout(clearResult, 15000);
+            }
+        }
 
         async function loadJails() {
             try {
                 const response = await fetch(`${basePath}/jails`);
                 const data = await response.json();
-                if (data.jails && data.jails.length > 0) {
-                    jailsBadge.textContent = `Monitoring ${data.count} jail${data.count !== 1 ? 's' : ''}: ${data.jails.join(', ')}`;
-                } else {
-                    jailsBadge.textContent = 'No jails configured';
+                jailsDiv.replaceChildren();
+                if (!data.jails || !data.jails.length) {
+                    jailsDiv.textContent = 'No jails configured';
+                    return;
                 }
+                const label = document.createElement('span');
+                label.className = 'jails-label';
+                label.textContent = `Unbanning from ${data.count} jail${data.count !== 1 ? 's' : ''}:`;
+                jailsDiv.appendChild(label);
+                data.jails.forEach(name => {
+                    const chip = document.createElement('span');
+                    chip.className = 'chip';
+                    chip.textContent = name;
+                    jailsDiv.appendChild(chip);
+                });
             } catch (error) {
                 console.error('Error loading jails:', error);
-                jailsBadge.textContent = 'Unable to load jail configuration';
+                jailsDiv.textContent = 'Unable to load jail configuration';
             }
         }
 
-        function showMessage(message, type, details = null) {
-            messageDiv.textContent = message;
-            messageDiv.className = `message ${type}`;
-            messageDiv.style.display = 'block';
-            
-            if (details && Array.isArray(details)) {
-                detailsList.innerHTML = '';
-                details.forEach(item => {
-                    const li = document.createElement('li');
-                    li.textContent = item;
-                    detailsList.appendChild(li);
-                });
-                detailsDiv.classList.add('show');
-            } else {
-                detailsDiv.classList.remove('show');
+        async function loadStatus() {
+            try {
+                const response = await fetch(`${basePath}/health`, { cache: 'no-store' });
+                const ok = response.ok;
+                statusDiv.dataset.state = ok ? 'ok' : 'down';
+                statusText.textContent = ok ? 'fail2ban is reachable' : 'fail2ban is currently unreachable – unban may fail';
+            } catch (error) {
+                statusDiv.dataset.state = 'down';
+                statusText.textContent = 'Service unreachable';
             }
-            
-            setTimeout(() => {
-                messageDiv.style.display = 'none';
-                if (!details) {
-                    detailsDiv.classList.remove('show');
-                }
-            }, 8000);
-        }
-
-        function validateIP(ip) {
-            const pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-            if (!pattern.test(ip)) return false;
-            
-            const parts = ip.split('.');
-            return parts.every(part => {
-                const num = parseInt(part, 10);
-                return num >= 0 && num <= 255;
-            });
         }
 
         async function detectIP() {
-            const originalText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="loader"></span> Detecting...';
-            
+            const original = detectBtn.textContent;
+            detectBtn.disabled = true;
+            detectBtn.innerHTML = '<span class="loader"></span>Detecting';
+            clearResult();
             try {
-                const response = await fetch('https://api.ipify.org?format=json');
+                // api64 returns the IPv6 address when the browser uses IPv6, IPv4 otherwise.
+                const response = await fetch('https://api64.ipify.org?format=json');
                 const data = await response.json();
+                if (!validateIP(data.ip)) throw new Error('unexpected response');
                 ipInput.value = data.ip;
-                showMessage(`✓ IP detected: ${data.ip}`, 'success');
+                setHint(`Detected ${data.ip}`, false);
+                ipInput.focus();
             } catch (error) {
-                showMessage('Failed to detect IP. Please use manual methods above.', 'error');
+                setHint('Could not detect your IP – use one of the methods below.', true);
             } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
+                detectBtn.disabled = false;
+                detectBtn.textContent = original;
             }
         }
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const ip = ipInput.value.trim();
-            
+            ipInput.value = ip;
+
             if (!validateIP(ip)) {
-                showMessage('Please enter a valid IP address (e.g., 192.168.1.100)', 'error');
+                setHint('Please enter a valid IPv4 or IPv6 address (e.g. 203.0.113.42).', true);
+                clearResult();
+                ipInput.focus();
                 return;
             }
-            
+            setHint('', false);
+
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="loader"></span> Unbanning...';
-            messageDiv.style.display = 'none';
-            detailsDiv.classList.remove('show');
-            
+            submitBtn.innerHTML = '<span class="loader"></span>Unbanning…';
+            clearResult();
+
             try {
                 const response = await fetch(`${basePath}/unban`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ip })
                 });
-                
-                const data = await response.json();
-                
+                let data = {};
+                try { data = await response.json(); } catch (_) { /* non-JSON error page from a proxy */ }
+
                 if (response.ok && data.success) {
                     showMessage(data.message, 'success', data.details);
                     ipInput.value = '';
                 } else {
-                    showMessage(data.message || 'Failed to unban IP', 'error', data.details);
+                    showMessage(data.message || `Request failed (HTTP ${response.status})`, 'error', data.details);
                 }
             } catch (error) {
                 console.error('Network error:', error);
                 showMessage('Network error. Please try again.', 'error');
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = 'Unban IP from All Jails';
+                submitBtn.textContent = SUBMIT_LABEL;
             }
         });
-        
-        ipInput.addEventListener('blur', () => {
-            ipInput.value = ipInput.value.trim();
-        });
-        
-        // Load jails on page load
+
+        ipInput.addEventListener('input', () => { if (ipInput.getAttribute('aria-invalid') === 'true') setHint('', false); });
+        detectBtn.addEventListener('click', detectIP);
+
         loadJails();
+        loadStatus();
     </script>
 </body>
 </html>
